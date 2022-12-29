@@ -1,7 +1,6 @@
 import { createDropzone } from '@soorria/solid-dropzone'
 import {
   Accessor,
-  children,
   createEffect,
   createMemo,
   createSignal,
