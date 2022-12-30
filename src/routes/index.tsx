@@ -530,6 +530,8 @@ const Slideshow: VoidComponent<{
     )
   })
 
+  const [portalRoot, setPortalRoot] = createSignal<HTMLDivElement>()
+
   return (
     <div
       ref={setSlideContainerRef}
@@ -624,15 +626,9 @@ const Slideshow: VoidComponent<{
             <SettingsIcon class="h-4 w-4 transition-transform group-hocus-visible:rotate-[60deg]" />
             settings
           </button>
-          <ClientOnly>
-            {() => (
-              <Portal
-                mount={
-                  typeof window === 'undefined'
-                    ? undefined
-                    : document.getElementById('show-portal-root') ?? undefined
-                }
-              >
+          <Show when={portalRoot()} keyed>
+            {root => (
+              <Portal mount={root}>
                 <div
                   {...settingsPopover.api.positionerProps}
                   class="rounded-box z-over-animation w-full max-w-sm bg-base-100 p-4"
@@ -820,11 +816,11 @@ const Slideshow: VoidComponent<{
                 </div>
               </Portal>
             )}
-          </ClientOnly>
+          </Show>
         </div>
       </div>
 
-      <div id="show-portal-root"></div>
+      <div ref={setPortalRoot} id="show-portal-root"></div>
     </div>
   )
 }
