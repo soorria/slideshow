@@ -6,6 +6,7 @@ import {
   createSignal,
   FlowComponent,
   For,
+  type JSX,
   JSXElement,
   onCleanup,
   onMount,
@@ -344,27 +345,6 @@ const Slideshow: VoidComponent<{
   const canNext = () =>
     props.settings.loop || props.position < props.images.length - 1
 
-  const displayedImage = createMemo((): JSXElement => {
-    if (props.images.length === 0) return null
-    // de-opt so I can use auto-animate for animations
-    const src = props.images[props.position].url
-    console.log({
-      position: props.position,
-      src,
-      images: props.images.map(i => i.url),
-    })
-    return (
-      <img
-        src={src}
-        class="h-full w-full fullscreen:max-h-screen fullscreen:max-w-[100vh]"
-        classList={{
-          'object-cover': props.settings.imageFillMode === 'cover',
-          'object-contain': props.settings.imageFillMode === 'contain',
-        }}
-      />
-    )
-  })
-
   const isMouseInactive = useIsMouseInactive()
   const settingsPopover = createPopover({
     id: 'show-settings',
@@ -384,7 +364,7 @@ const Slideshow: VoidComponent<{
 
     const animation = autoAnimate(
       slideRootEl,
-      (el, action, oldCoords, newCoords) => {
+      (el, action, _oldCoords, _newCoords) => {
         let keyframes = [] as Keyframe[]
 
         const animation = props.settings.animation
@@ -396,25 +376,38 @@ const Slideshow: VoidComponent<{
           if (action === 'remove') {
             keyframes = [{ opacity: 1 }, { opacity: 0 }]
           }
-        } else if (animation === 'slide') {
+        } else if (['slide', 'slide-fade'].includes(animation)) {
           const curr = props.position
           const prev = prevPosition()
+          const shouldFade = animation === 'slide-fade'
           keyframes = (() => {
             if (prev === undefined) {
               return []
             }
 
-            const isForward = curr > prev
+            const lastPossibleIndex = props.images.length - 1
+            const isForward =
+              (curr > prev ||
+                // from last image to first
+                (curr === 0 && prev === lastPossibleIndex)) &&
+              // from first image to last
+              !(prev === 0 && curr === lastPossibleIndex)
             if (action === 'add') {
               return [
-                { transform: `translate3d(${isForward ? 100 : -100}%, 0, 0)` },
-                { transform: `translate3d(0, 0, 0)` },
+                {
+                  transform: `translate3d(${isForward ? 100 : -100}%, 0, 0)`,
+                  opacity: shouldFade ? 0 : 1,
+                },
+                { transform: `translate3d(0, 0, 0)`, opacity: 1 },
               ]
             }
             if (action === 'remove') {
               return [
-                { transform: `translate3d(0, 0, 0)` },
-                { transform: `translate3d(${isForward ? -100 : 100}%, 0, 0)` },
+                { transform: `translate3d(0, 0, 0)`, opacity: 1 },
+                {
+                  transform: `translate3d(${isForward ? -100 : 100}%, 0, 0)`,
+                  opacity: shouldFade ? 0 : 1,
+                },
               ]
             }
 
@@ -495,6 +488,23 @@ const Slideshow: VoidComponent<{
     })
   })
 
+  // const containerSize = useElementSize(slideContainerRef)
+  const displayedImage = createMemo((): JSXElement => {
+    if (props.images.length === 0) return null
+    // de-opt so I can use auto-animate for animations
+    const src = props.images[props.position].url
+    return (
+      <img
+        src={src}
+        class="h-full w-full fullscreen:max-h-screen fullscreen:max-w-[100vh]"
+        classList={{
+          'object-cover': props.settings.imageFillMode === 'cover',
+          'object-contain': props.settings.imageFillMode === 'contain',
+        }}
+      />
+    )
+  })
+
   return (
     <div
       ref={setSlideContainerRef}
@@ -506,7 +516,7 @@ const Slideshow: VoidComponent<{
     >
       <div
         ref={setSlideRef}
-        class="grid h-full select-none place-items-center overflow-hidden"
+        class="flex h-full select-none items-center justify-center"
       >
         {displayedImage}
       </div>
@@ -648,6 +658,7 @@ const Slideshow: VoidComponent<{
                           }}
                         >
                           <option value="">none</option>
+                          <option value="slide-fade">slide & fade</option>
                           <option value="slide">slide</option>
                           <option value="fade">fade</option>
                         </select>
@@ -779,7 +790,7 @@ const Slideshow: VoidComponent<{
 }
 
 type ImageFillMode = 'cover' | 'contain'
-type SlideshowAnimation = 'fade' | 'slide'
+type SlideshowAnimation = 'fade' | 'slide' | 'slide-fade'
 
 export default function Home() {
   const [state, setState] = createStore({
@@ -787,14 +798,17 @@ export default function Home() {
     position: 0,
     mode: 'select' as 'select' | 'show',
   })
-  const [settings, setSettings] = createLocalStore('slideshow:settings', {
-    autoplay: true,
-    autoplayInterval: 5000,
-    imageFillMode: 'contain' as ImageFillMode,
-    animation: 'slide' as SlideshowAnimation | null,
-    loop: true,
-    shuffleLoop: false,
-  })
+  const [settings, setSettings] = createLocalStore<Settings>(
+    'slideshow:settings',
+    {
+      autoplay: true,
+      autoplayInterval: 5000,
+      imageFillMode: 'contain',
+      animation: 'slide-fade',
+      loop: true,
+      shuffleLoop: false,
+    }
+  )
 
   const setPosition = (position: number) => {
     const numImages = state.images.length
@@ -851,10 +865,21 @@ const createLocalStore = <T extends object>(
   key: string,
   initialValue: T
 ): readonly [state: T, setState: SetStoreFunction<T>] => {
-  const [state, setState] = createStore(initialValue)
+  const [state, setState] = createStore(
+    ((): T => {
+      try {
+        const stored = localStorage.getItem(key)
+        if (!stored) return initialValue
+        return JSON.parse(stored) as T
+      } catch {
+        return initialValue
+      }
+    })()
+  )
   createEffect(() => {
     localStorage.setItem(key, JSON.stringify(state))
   })
+  createEffect(() => console.log(key, { ...state }))
   return [state, setState] as const
 }
 
@@ -966,4 +991,34 @@ const ClientOnly: FlowComponent<
       {props.children}
     </Show>
   )
+}
+
+const useElementSize = (element: Accessor<Element | undefined | null>) => {
+  const [size, setSize] = createStore({
+    width: 0,
+    height: 0,
+  })
+
+  createEffect(() => {
+    const el = element()
+    if (!el) return
+
+    const resizeHandler = () => {
+      const rect = el.getBoundingClientRect()
+      if (!rect) return
+
+      setSize({
+        width: rect.width,
+        height: rect.height,
+      })
+    }
+
+    window.addEventListener('resize', resizeHandler, { passive: true })
+
+    onCleanup(() => {
+      window.removeEventListener('resize', resizeHandler)
+    })
+  })
+
+  return size
 }
