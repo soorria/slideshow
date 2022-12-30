@@ -106,7 +106,7 @@ const ImagesSelector: VoidComponent<{
       }}
     >
       <Show when={props.value.length === 0}>
-        <div class="absolute inset-0 grid place-items-center bg-base-100 text-xl">
+        <div class="absolute inset-0 grid place-items-center bg-base-100 p-4 text-center text-3xl">
           click or drop images here to get started
         </div>
         <div
@@ -148,13 +148,24 @@ const ImagesSelector: VoidComponent<{
         </div>
       </Show>
       <div
-        class="absolute inset-0 grid place-items-center bg-base-100 text-xl transition-opacity"
+        class="absolute inset-0 grid place-items-center bg-base-100 text-center text-3xl transition-opacity"
         classList={{
           'opacity-0 pointer-events-none': !dropzone.isDragActive,
           'opacity-100': dropzone.isDragActive,
         }}
       >
-        drop files here
+        <div class="space-y-4">
+          <p>drop files here</p>
+          {/* <span class="flex items-center gap-2 text-base">
+            <span class="text-success">
+              {dropzone.dragging.acceptedFiles.length} accepted
+            </span>
+            {' / '}
+            <span class="text-error">
+              {dropzone.dragging.fileRejections.length} rejected
+            </span>
+          </span> */}
+        </div>
       </div>
       <input id="images-input" {...dropzone.getInputProps()} />
       <Show when={props.value.length > 0}>
@@ -376,7 +387,7 @@ const Slideshow: VoidComponent<{
           if (action === 'remove') {
             keyframes = [{ opacity: 1 }, { opacity: 0 }]
           }
-        } else if (['slide', 'slide-fade'].includes(animation)) {
+        } else if ((['slide', 'slide-fade'] as any[]).includes(animation)) {
           const curr = props.position
           const prev = prevPosition()
           const shouldFade = animation === 'slide-fade'
@@ -384,6 +395,10 @@ const Slideshow: VoidComponent<{
             if (prev === undefined) {
               return []
             }
+
+            const parentWidth = slideRootEl.getBoundingClientRect().width
+            const translateXAmount = parentWidth ? `${parentWidth}px` : '100%'
+            console.log({ curr, prev, action, translateXAmount })
 
             const lastPossibleIndex = props.images.length - 1
             const isForward =
@@ -393,19 +408,21 @@ const Slideshow: VoidComponent<{
               // from first image to last
               !(prev === 0 && curr === lastPossibleIndex)
             if (action === 'add') {
+              const translateX = `${isForward ? '' : '-'}${translateXAmount}`
               return [
                 {
-                  transform: `translate3d(${isForward ? 100 : -100}%, 0, 0)`,
+                  transform: `translate3d(${translateX}, 0, 0)`,
                   opacity: shouldFade ? 0 : 1,
                 },
                 { transform: `translate3d(0, 0, 0)`, opacity: 1 },
               ]
             }
             if (action === 'remove') {
+              const translateX = `${isForward ? '-' : ''}${translateXAmount}`
               return [
                 { transform: `translate3d(0, 0, 0)`, opacity: 1 },
                 {
-                  transform: `translate3d(${isForward ? -100 : 100}%, 0, 0)`,
+                  transform: `translate3d(${translateX}, 0, 0)`,
                   opacity: shouldFade ? 0 : 1,
                 },
               ]

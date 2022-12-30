@@ -9,6 +9,7 @@ body {
 
 .btn:focus-visible {
   outline-color: theme('colors.primary');
+  z-index: 10;
 }
 
 .swap > * {

@@ -22,7 +22,7 @@
     "@formkit/auto-animate": "^1.0.0-beta.5",
     "@solidjs/meta": "^0.28.0",
     "@solidjs/router": "^0.6.0",
-    "@soorria/solid-dropzone": "^0.0.1",
+    "@soorria/solid-dropzone": "^0.0.3",
     "@thisbeyond/solid-dnd": "^0.7.3",
     "@zag-js/popover": "^0.2.5",
     "@zag-js/solid": "^0.2.3",
