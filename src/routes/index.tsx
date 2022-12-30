@@ -12,8 +12,14 @@ import {
   onMount,
   Show,
   VoidComponent,
+  splitProps,
+  PropsWithChildren,
+  createComputed,
+  children,
+  DEV,
+  mergeProps,
 } from 'solid-js'
-import { createStore, SetStoreFunction } from 'solid-js/store'
+import { createStore, reconcile, SetStoreFunction } from 'solid-js/store'
 import { toast } from 'solid-toast'
 import autoAnimate, { AnimationController } from '@formkit/auto-animate'
 import {
@@ -24,8 +30,9 @@ import {
   useDragDropContext,
 } from '@thisbeyond/solid-dnd'
 import shuffle from 'lodash.shuffle'
-import { Portal } from 'solid-js/web'
+import { assign, effect, Portal, spread } from 'solid-js/web'
 import * as popover from '@zag-js/popover'
+import * as tooltip from '@zag-js/tooltip'
 import { normalizeProps, useMachine } from '@zag-js/solid'
 import ms from 'ms'
 
@@ -42,6 +49,7 @@ import {
   ShuffleIcon,
   TrashIcon,
 } from '~/components/icons'
+import { pathIntegration } from '@solidjs/router'
 
 type ImageDef = { file?: File; url: string }
 declare module 'solid-js' {
@@ -545,46 +553,61 @@ const Slideshow: VoidComponent<{
         }}
       >
         <div class="rounded-tr-box btn-group overflow-hidden bg-base-100/50 p-4 backdrop-blur">
-          <button
-            class="group/btn btn btn-square btn-sm inline-flex gap-1"
-            aria-label="toggle fullscreen"
-            onClick={() => toggleFullscreen()}
+          <Tooltip
+            id="control--fullscreen"
+            content="toggle fullscreen (f)"
+            positioning={{
+              placement: 'top-start',
+            }}
           >
-            <ArrowsOut class="h-4 w-4 transition-transform group-hocus-visible/btn:scale-125 group-fullscreen/show:hidden" />
-            <ArrowsIn class="h-4 w-4 scale-125 transition-transform group-hocus-visible/btn:scale-100 group-not-fullscreen/show:hidden" />
-          </button>
-          <button
-            class="group/btn btn btn-sm gap-1"
-            onClick={() => props.onPositionChange(props.position - 1)}
-            disabled={!canPrev()}
-            aria-label="previous image"
-          >
-            <ChevronLeftIcon class="h-4 w-4 transition-transform group-hocus-visible/btn:-translate-x-1" />
-            prev
-          </button>
-          <button
-            class="group/btn btn btn-sm gap-1"
-            onClick={() => props.onPositionChange(props.position + 1)}
-            disabled={!canNext()}
-            aria-label="next image"
-          >
-            next
-            <ChevronRightIcon class="h-4 w-4 transition-transform group-hocus-visible/btn:translate-x-1" />
-          </button>
-          <button
-            class="group/btn btn btn-sm gap-1"
-            onClick={() => props.onSettingsChange('autoplay', v => !v)}
-            aria-label="toggle autoplay"
-          >
-            <span
-              class="swap-rotate swap"
-              classList={{ 'swap-active': props.settings.autoplay }}
+            <button
+              class="group/btn btn btn-square btn-sm inline-flex gap-1"
+              aria-label="toggle fullscreen"
+              onClick={() => toggleFullscreen()}
             >
-              <PauseIcon class="swap-on h-4 w-4" />
-              <PlayIcon class="swap-off h-4 w-4" />
-            </span>
-            {props.settings.autoplay ? 'pause' : 'play'}
-          </button>
+              <ArrowsOut class="h-4 w-4 transition-transform group-hocus-visible/btn:scale-125 group-fullscreen/show:hidden" />
+              <ArrowsIn class="h-4 w-4 scale-125 transition-transform group-hocus-visible/btn:scale-100 group-not-fullscreen/show:hidden" />
+            </button>
+          </Tooltip>
+          <Tooltip id="control--prev" content="previous image">
+            <button
+              class="group/btn btn btn-sm gap-1"
+              onClick={() => props.onPositionChange(props.position - 1)}
+              disabled={!canPrev()}
+              aria-label="previous image"
+            >
+              <ChevronLeftIcon class="h-4 w-4 transition-transform group-hocus-visible/btn:-translate-x-1" />
+              prev
+            </button>
+          </Tooltip>
+          <Tooltip id="control--next" content="next image">
+            <button
+              class="group/btn btn btn-sm gap-1"
+              onClick={() => props.onPositionChange(props.position + 1)}
+              disabled={!canNext()}
+              aria-label="next image"
+            >
+              next
+              <ChevronRightIcon class="h-4 w-4 transition-transform group-hocus-visible/btn:translate-x-1" />
+            </button>
+          </Tooltip>
+
+          <Tooltip id="control--autoplay" content="toggle autoplay (p)">
+            <button
+              class="group/btn btn btn-sm gap-1"
+              onClick={() => props.onSettingsChange('autoplay', v => !v)}
+              aria-label="toggle autoplay"
+            >
+              <span
+                class="swap-rotate swap"
+                classList={{ 'swap-active': props.settings.autoplay }}
+              >
+                <PauseIcon class="swap-on h-4 w-4" />
+                <PlayIcon class="swap-off h-4 w-4" />
+              </span>
+              {props.settings.autoplay ? 'pause' : 'play'}
+            </button>
+          </Tooltip>
         </div>
         <div class="rounded-tl-box btn-group overflow-hidden bg-base-100/50 p-4 backdrop-blur">
           <button
@@ -979,11 +1002,11 @@ export const useIsMouseInactive = (props: UseIsMouseInactiveOptions = {}) => {
 
 const createPopover = (ctx: popover.Context) => {
   const [state, send] = useMachine(popover.machine(ctx))
-  const api = createMemo(() => popover.connect(state, send, normalizeProps))
+  const api = createMemoStore(() =>
+    popover.connect(state, send, normalizeProps)
+  )
   return {
-    get api() {
-      return api()
-    },
+    api,
   }
 }
 
@@ -1038,4 +1061,100 @@ const useElementSize = (element: Accessor<Element | undefined | null>) => {
   })
 
   return size
+}
+
+const createMemoStore = <T extends object>(get: Accessor<T>) => {
+  const [store, setStore] = createStore<T>(get())
+  // use createComputed to prevent tearing?
+  createComputed(() => setStore(reconcile(get())))
+  return store
+}
+
+type TooltipApi = ReturnType<typeof tooltip['connect']>
+const Tooltip: FlowComponent<
+  tooltip.Context & {
+    portalMount?: Node
+    content: JSXElement | ((api: TooltipApi) => JSXElement)
+    withArrow?: boolean
+  },
+  JSXElement
+> = props => {
+  const [, ctx] = splitProps(props, [
+    'portalMount',
+    'children',
+    'content',
+    'withArrow',
+  ])
+  const [state, send] = useMachine(
+    tooltip.machine(
+      mergeProps(
+        {
+          openDelay: 250,
+          closeDelay: 250,
+          get positioning() {
+            return mergeProps(
+              {
+                strategy: 'fixed',
+                placement: 'top',
+              } as tooltip.Context['positioning'],
+              ctx.positioning
+            )
+          },
+        } as Partial<tooltip.Context>,
+        ctx
+      )
+    )
+  )
+  const api = createMemoStore(() =>
+    tooltip.connect(state, send, normalizeProps)
+  )
+  const _children = children(() => props.children).toArray()
+  if (DEV) {
+    createEffect(() => {
+      if (_children.length > 1)
+        console.error('<Tooltip> should only have 1 child')
+      if (!(_children[0] instanceof Element)) {
+        console.error('<Tooltip> should only have Element children')
+      }
+    })
+  }
+  const child = createMemo(() => _children[0])
+  effect(() => {
+    const c = child()
+    if (c instanceof Element) {
+      assign(c, api.triggerProps, false, true)
+    }
+  })
+
+  const content = () => {
+    if (typeof props.content === 'function') {
+      return props.content(api)
+    }
+    return props.content
+  }
+
+  return (
+    <>
+      {child()}
+      <ClientOnly>
+        {() => (
+          <Portal mount={props.portalMount}>
+            <div {...api.positionerProps} class="z-over-animation">
+              <Show when={props.withArrow ?? true}>
+                <div {...api.arrowProps}>
+                  <div {...api.arrowTipProps} />
+                </div>
+              </Show>
+              <div
+                {...api.contentProps}
+                class="rounded bg-neutral py-1 px-2 text-neutral-content shadow-sm"
+              >
+                {content()}
+              </div>
+            </div>
+          </Portal>
+        )}
+      </ClientOnly>
+    </>
+  )
 }
