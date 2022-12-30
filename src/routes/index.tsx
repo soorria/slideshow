@@ -18,6 +18,7 @@ import {
   children,
   DEV,
   mergeProps,
+  Suspense,
 } from 'solid-js'
 import { createStore, reconcile, SetStoreFunction } from 'solid-js/store'
 import { toast } from 'solid-toast'
@@ -30,7 +31,7 @@ import {
   useDragDropContext,
 } from '@thisbeyond/solid-dnd'
 import shuffle from 'lodash.shuffle'
-import { assign, effect, Portal, spread } from 'solid-js/web'
+import { isServer, Portal } from 'solid-js/web'
 import * as popover from '@zag-js/popover'
 import * as tooltip from '@zag-js/tooltip'
 import { normalizeProps, useMachine } from '@zag-js/solid'
@@ -49,7 +50,6 @@ import {
   ShuffleIcon,
   TrashIcon,
 } from '~/components/icons'
-import { pathIntegration } from '@solidjs/router'
 
 type ImageDef = { file?: File; url: string }
 declare module 'solid-js' {
@@ -1115,12 +1115,16 @@ const Tooltip: FlowComponent<
     })
   }
   const child = createMemo(() => _children[0])
-  effect(() => {
-    const c = child()
-    if (c instanceof Element) {
-      assign(c, api.triggerProps, false, true)
-    }
-  })
+
+  if (!isServer) {
+    createComputed(async () => {
+      const assign = await import('solid-js/web').then(mod => mod.assign)
+      const c = child()
+      if (c instanceof Element) {
+        assign(c, api.triggerProps, false, true)
+      }
+    })
+  }
 
   const content = () => {
     if (typeof props.content === 'function') {
