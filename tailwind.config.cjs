@@ -8,6 +8,9 @@ module.exports = {
         // z-index for something being auto-animated is 100
         'over-animation': 1000,
       },
+      animation: {
+        'fast-spin': 'spin 0.5s linear infinite',
+      },
     },
   },
   daisyui: {
