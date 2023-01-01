@@ -22,6 +22,7 @@ const ImagesGrid: VoidComponent<{
   value: ImageDef[]
   onChange: (value: ImageDef[]) => void
   onStart: (arg?: { image: ImageDef; index: number }) => void
+  inputId: string
 }> = props => {
   const [gridRef, setGridRef] = createSignal<HTMLDivElement | null>(null)
   let animation: AnimationController
@@ -39,14 +40,15 @@ const ImagesGrid: VoidComponent<{
     <div class="flex max-h-full min-h-full flex-col space-y-4 overflow-y-auto px-4">
       <div class="sticky top-0 z-10 flex items-center justify-between bg-base-100/30 py-4 backdrop-blur">
         <h1 class="text-2xl font-bold sm:text-3xl">
-          {props.value.length} images uploaded
+          {props.value.length} image{props.value.length === 1 ? '' : 's'}{' '}
+          uploaded
         </h1>
 
         <label
-          for="images-input"
+          for={props.inputId}
           class="cursor-pointer text-sm hocus:underline"
         >
-          click or drop to add more images
+          click here or drop images to add more
         </label>
       </div>
       <DragDropProvider

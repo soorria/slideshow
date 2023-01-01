@@ -117,6 +117,7 @@ const ImagesSelector: VoidComponent<{
           }
         >
           <ImagesGrid
+            inputId="images-input"
             value={props.value}
             onChange={props.onChange}
             onStart={props.onStart}
