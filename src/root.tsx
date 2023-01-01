@@ -43,7 +43,7 @@ export default function Root() {
         <Meta name="twitter:creator" content="@soorriously" />
         <Meta name="twitter:site" content="@soorriously" />
         <Meta name="twitter:title" content={META.title} />
-        <Meta name="twitter:alt" content={META.title} />{' '}
+        <Meta name="twitter:alt" content={META.title} />
       </Head>
       <Body>
         <Suspense>
