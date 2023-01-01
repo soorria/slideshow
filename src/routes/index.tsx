@@ -6,19 +6,16 @@ import {
   createSignal,
   FlowComponent,
   For,
-  type JSX,
   JSXElement,
   onCleanup,
   onMount,
   Show,
   VoidComponent,
   splitProps,
-  PropsWithChildren,
   createComputed,
   children,
   DEV,
   mergeProps,
-  Suspense,
 } from 'solid-js'
 import { createStore, reconcile, SetStoreFunction } from 'solid-js/store'
 import { toast } from 'solid-toast'
@@ -75,11 +72,11 @@ const ImagesSelector: VoidComponent<{
       if (rejected.length) {
         toast.error('only image files are allowed')
       }
-      const existingFiles = new Set(props.value.map(i => getName(i)))
+      const existingImageNames = new Set(props.value.map(i => getName(i)))
       props.onChange([
         ...props.value,
         ...accepted
-          .filter(f => !existingFiles.has(f.name))
+          .filter(f => !existingImageNames.has(f.name))
           .map(file => ({
             file,
             url: URL.createObjectURL(file),
@@ -124,7 +121,7 @@ const ImagesSelector: VoidComponent<{
           }}
         >
           <a
-            href="https://soorria.com/?ref=Utils"
+            href="https://soorria.com/?ref=slidy"
             target="_blank"
             rel="noopener noreferrer"
             class="focus-outline group link-hover link rounded-btn inline-block px-2"
@@ -137,7 +134,7 @@ const ImagesSelector: VoidComponent<{
             by <span class="underline group-hover:no-underline">Soorria</span>
           </a>
           <a
-            href="https://github.com/soorria/slideshow"
+            href="https://github.com/soorria/slidy"
             target="_blank"
             rel="noopener noreferrer"
             class="focus-outline group link-hover link rounded-btn inline-block px-2"
@@ -163,7 +160,7 @@ const ImagesSelector: VoidComponent<{
         }}
       >
         <div class="space-y-4">
-          <p>drop files here</p>
+          <p>drop images here</p>
           {/* <span class="flex items-center gap-2 text-base">
             <span class="text-success">
               {dropzone.dragging.acceptedFiles.length} accepted
@@ -180,14 +177,14 @@ const ImagesSelector: VoidComponent<{
         <div class="flex max-h-full min-h-full flex-col space-y-4 overflow-y-auto px-4">
           <div class="sticky top-0 z-10 flex items-center justify-between bg-base-100/30 py-4 backdrop-blur">
             <h1 class="text-2xl font-bold sm:text-3xl">
-              {props.value.length} files uploaded
+              {props.value.length} images uploaded
             </h1>
 
             <label
               for="images-input"
               class="cursor-pointer text-sm hocus:underline"
             >
-              click or drop to add more files
+              click or drop to add more images
             </label>
           </div>
           <DragDropProvider
@@ -873,7 +870,7 @@ export default function Home() {
       <Show when={state.mode === 'select'}>
         <ImagesSelector
           value={state.images}
-          onChange={newFiles => setState('images', newFiles)}
+          onChange={newImages => setState('images', newImages)}
           onStart={from => {
             setState({
               position: clamp(from?.index ?? 0, 0, state.images.length - 1),
