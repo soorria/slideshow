@@ -16,7 +16,7 @@ import './root.css'
 
 const META = {
   title: 'slidy - simple image slideshows',
-  description: '',
+  description: 'simple image slideshow app',
   image: `https://soorria.com/api/og?${new URLSearchParams({
     subtitle: 'simple image slideshows',
     title: 'slidy.soorria.com',
